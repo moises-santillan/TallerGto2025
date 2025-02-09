@@ -1,5 +1,8 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+from ddeint import ddeint
+from scipy.interpolate import CubicSpline
+from scipy.optimize import curve_fit
 
 def solve_differential_equation(model, t_end, initial_condition, params):
     """
@@ -32,11 +35,44 @@ def solve_differential_equation(model, t_end, initial_condition, params):
 
     return t, y
 
-import numpy as np
-from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
+
+def solve_dde_equation(model, t_end, initial_history, params):
+    """
+    Solves a delay differential equation defined by the model function.
+    
+    Parameters:
+    - model: A function that defines the DDE system. It should accept state y, time t, and params.
+    - t_end: The end time for the simulation.
+    - initial_history: A function that returns the initial history of the system state.
+    - params: list of parameters needed by the model function.
+    
+    Returns:
+    - t: Array of time points.
+    - y: Array of solution values for each time point.
+    """
+    t = np.linspace(0, t_end, 1000)
+    y = ddeint(model, initial_history, t, fargs=params)
+    return t, y
 
 
+
+def fit_OGTT(t_data, glucose_data):
+    def callable_function(t, absortion, glucose_rate, insulin_rate, delay):
+        t_end = 120
+        bolus = 0.015
+        params = (bolus, absortion, glucose_rate, insulin_rate, delay)
+        tt, yy = solve_dde_equation(glucose_regulation_model, t_end, glucose_initial_history, params)
+        fnctn = CubicSpline(tt,yy)
+        return fnctn(t)[:, 0]
+
+    def error(par):
+        return (np.sum(callable_function(t_data, *par) - glucose_data))**2
+    
+    bounds = [(0, .2),(0, .05),(0, .05),(0, 20)]
+    result = differential_evolution(error, bounds)
+    return result.x
+
+    
 def exponential_decay_model(t, y, decay_rate):
     """
     Defines the exponential decay model.
@@ -51,7 +87,6 @@ def exponential_decay_model(t, y, decay_rate):
     """
     dydt = -decay_rate * y  # Exponential decay equation
     return dydt
-
 
 
 def logistic_growth_model(t, y, r, K):
@@ -86,4 +121,37 @@ def gene_expression_model(t, y, basal_rate, maximum_rate):
     """
     dydt = basal_rate + maximum_rate * y**4 / (y**4 + 1) - y  # Gene expression equation
     return dydt
+    
+
+def glucose_regulation_model(y, t, bolus, absortion, glucose_rate, insulin_rate, delay):
+    """
+    Defines the glucose regulation model.
+    
+    Parameters:
+    - t: Time variable.
+    - y: Current glucose level.
+    - bolus: Glucose.
+    - absortion: Intestinal absortion rate.
+    - glucose_rate: Rate constant for insulin-independent glucose consumption
+    - insulin_rate: Rate constant for unsulin-dependent glucose consumption
+    - delay: Time delay of insulin-dependent response
+    
+    Returns:
+    - dydt: The derivative of y with respect to time.
+    """
+    return bolus*t*np.exp(-absortion*t) + glucose_rate*(1 - y(t)) + insulin_rate*(1 - y(t-delay))
+
+
+def glucose_initial_history(t):
+    """
+    Defines the initial history of the system state for the glucose regulation model.
+    
+    Parameters:
+    - t: Time variable (not used in this model).
+    
+    Returns:
+    - 1: Assuming that the system has been in its basal state for a while.
+    """
+    return 1
+
 
