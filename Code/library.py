@@ -3,6 +3,7 @@ from scipy.integrate import solve_ivp
 from ddeint import ddeint
 from scipy.interpolate import CubicSpline
 from scipy.optimize import curve_fit
+from geneticalgorithm import geneticalgorithm as ga
 
 def solve_differential_equation(model, t_end, initial_condition, params):
     """
@@ -84,7 +85,7 @@ def fit_OGTT_ga(t_data, glucose_data):
     bounds = np.array([[0.075, .1],[0.01, .04],[0.01, .04],[4, 6]])
     model=ga(function=error,dimension=4,variable_type='real',variable_boundaries=bounds)
     model.run()
-    return model.ouput_dict
+    return model.output_dict
 
     
 def exponential_decay_model(t, y, decay_rate):
