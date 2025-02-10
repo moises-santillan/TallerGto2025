@@ -56,7 +56,20 @@ def solve_dde_equation(model, t_end, initial_history, params):
 
 
 
-def fit_OGTT(t_data, glucose_data):
+def fit_OGTT_ms(t_data, glucose_data, pmin, pmax):
+    def callable_function(t, absortion, glucose_rate, insulin_rate, delay):
+        t_end = 120
+        bolus = 0.015
+        params = (bolus, absortion, glucose_rate, insulin_rate, delay)
+        tt, yy = solve_dde_equation(glucose_regulation_model, t_end, glucose_initial_history, params)
+        fnctn = CubicSpline(tt,yy)
+        return fnctn(t)[:, 0]
+
+    popt, pcov = curve_fit(callable_function, t_data, glucose_data, bounds=(pmin, pmax), method="dogbox")
+
+    return popt
+
+def fit_OGTT_ga(t_data, glucose_data):
     def callable_function(t, absortion, glucose_rate, insulin_rate, delay):
         t_end = 120
         bolus = 0.015
@@ -67,10 +80,11 @@ def fit_OGTT(t_data, glucose_data):
 
     def error(par):
         return (np.sum(callable_function(t_data, *par) - glucose_data))**2
-    
-    bounds = [(0, .2),(0, .05),(0, .05),(0, 20)]
-    result = differential_evolution(error, bounds)
-    return result.x
+
+    bounds = np.array([[0.075, .1],[0.01, .04],[0.01, .04],[4, 6]])
+    model=ga(function=error,dimension=4,variable_type='real',variable_boundaries=bounds)
+    model.run()
+    return model.ouput_dict
 
     
 def exponential_decay_model(t, y, decay_rate):
