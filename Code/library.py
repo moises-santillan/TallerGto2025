@@ -82,7 +82,7 @@ def fit_OGTT_ga(t_data, glucose_data):
     def error(par):
         return (np.sum(callable_function(t_data, *par) - glucose_data))**2
 
-    bounds = np.array([[0.075, .1],[0.01, .04],[0.01, .04],[4, 6]])
+    bounds = np.array([[0.02, .1],[0.01, .1],[0.01, .1],[5, 10]])
     model=ga(function=error,dimension=4,variable_type='real',variable_boundaries=bounds)
     model.run()
     return model.output_dict
